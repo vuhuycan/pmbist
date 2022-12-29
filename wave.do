@@ -20,20 +20,22 @@ add wave -noupdate -expand -group INS_FETCH /microcode_container/next_inst_cond_
 add wave -noupdate -expand -group INS_FETCH /microcode_container/next_inst_cond_y
 add wave -noupdate -expand -group INS_FETCH /microcode_container/next_inst_cond_rc
 add wave -noupdate -expand -group INS_FETCH /microcode_container/loop_en
-add wave -noupdate -expand -group INS_FETCH /microcode_container/loop_bg_data
-add wave -noupdate -expand -group INS_FETCH /microcode_container/loop_addr_seq
-add wave -noupdate -expand -group INS_FETCH /microcode_container/jmp_to_inst
-add wave -noupdate /microcode_container/microcode
-add wave -noupdate /microcode_container/r_inst_ptr
-add wave -noupdate /microcode_container/next_inst_ptr
-add wave -noupdate /microcode_container/curr_inst
-add wave -noupdate -expand -group flowCTRL /microcode_container/jmp_en
-add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_sastified
-add wave -noupdate -expand -group flowCTRL /microcode_container/r_loop_reg
+add wave -noupdate -expand -group INS_FETCH /microcode_container/inv_bg_data
+add wave -noupdate -expand -group INS_FETCH /microcode_container/inv_addr_seq
 add wave -noupdate -expand -group flowCTRL /microcode_container/next_loop_reg
-add wave -noupdate /microcode_container/r_data_reg
-add wave -noupdate /microcode_container/next_data_reg
-add wave -noupdate /microcode_container/next_data_reg_dflt
+add wave -noupdate -expand -group flowCTRL /microcode_container/r_loop_reg
+add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_mask
+add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_sastified
+add wave -noupdate -expand -group flowCTRL /microcode_container/jmp_en
+add wave -noupdate -expand -group uCode /microcode_container/jmp_to_inst
+add wave -noupdate -expand -group uCode /microcode_container/next_inst_ptr
+add wave -noupdate -expand -group uCode /microcode_container/r_inst_ptr
+add wave -noupdate -expand -group uCode /microcode_container/microcode
+add wave -noupdate -expand -group uCode /microcode_container/curr_inst
+add wave -noupdate -expand -group DatGen /microcode_container/next_data_reg_dflt
+add wave -noupdate -expand -group DatGen /microcode_container/next_data_reg_af_loop
+add wave -noupdate -expand -group DatGen /microcode_container/next_data_reg
+add wave -noupdate -expand -group DatGen /microcode_container/r_data_reg
 add wave -noupdate /microcode_container/r_addr_x_max
 add wave -noupdate /microcode_container/r_addr_x_min
 add wave -noupdate /microcode_container/r_addr_ax_reg
@@ -66,11 +68,14 @@ add wave -noupdate /microcode_container/r_rc_max
 add wave -noupdate /microcode_container/rc_carry
 add wave -noupdate /microcode_container/addr_x_carry
 add wave -noupdate /microcode_container/addr_y_carry
-add wave -noupdate /microcode_container/next_inst_cond_mask
+add wave -noupdate /microcode_container/addr_x_op_p1_bf_loop
+add wave -noupdate /microcode_container/addr_x_op_m1_bf_loop
+add wave -noupdate /microcode_container/addr_y_op_p1_bf_loop
+add wave -noupdate /microcode_container/addr_y_op_m1_bf_loop
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {386 ps} 0}
+WaveRestoreCursors {{Cursor 1} {3200 ps} 0}
 quietly wave cursor active 1
-configure wave -namecolwidth 278
+configure wave -namecolwidth 300
 configure wave -valuecolwidth 100
 configure wave -justifyvalue left
 configure wave -signalnamewidth 0
@@ -84,4 +89,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {237 ps} {2093 ps}
+WaveRestoreZoom {0 ps} {3702 ps}

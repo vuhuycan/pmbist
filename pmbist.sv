@@ -116,7 +116,7 @@ import pmbist::*;
     t_rpt_cntr_cmd rpt_cntr_cmd;
     t_next_inst_cond next_inst_cond_x, next_inst_cond_y, next_inst_cond_rc;    
     t_loop_mode loop_en;
-    t_dflt_inv loop_bg_data, loop_addr_seq;
+    t_dflt_inv inv_bg_data, inv_addr_seq;
     logic [INST_NUM_W-1:0] jmp_to_inst;
     
     logic [INST-1:0] microcode [0:INST_NUM-1];
@@ -128,6 +128,13 @@ import pmbist::*;
     logic next_inst_cond_sastified;
     logic[INST_NUM-1:0] r_loop_reg, next_loop_reg;
 
+
+
+
+
+    //---------------------------
+    //-- Instruction Pointer:
+    //---------------------------
     assign jmp_en = loop_en & next_inst_cond_sastified & ~r_loop_reg[r_inst_ptr];
     assign inst_ptr_si = '0;//just for test
     assign next_inst_ptr = jmp_en? jmp_to_inst : (next_inst_cond_sastified)? r_inst_ptr +1 : r_inst_ptr;
@@ -143,6 +150,11 @@ import pmbist::*;
     end 
     assign inst_ptr_so = r_inst_ptr[INST_NUM_W-1];
     
+
+
+    //---------------------------
+    //-- MicroCode:
+    //---------------------------
     always @(posedge clk or negedge rstn) begin
         if (~rstn) begin
             for (int i =0; i <INST_NUM; i =i +1) begin
@@ -158,6 +170,10 @@ import pmbist::*;
     end    
 
     
+
+    //---------------------------
+    //-- Fetch current Instruction from MicroCode:
+    //---------------------------
     assign curr_inst          = microcode[r_inst_ptr];
 
     assign o_op_cmd           =             t_op_cmd'(curr_inst[OP_CMD-1:0]);
@@ -172,16 +188,22 @@ import pmbist::*;
     assign next_inst_cond_y   =     t_next_inst_cond'(curr_inst[OP_CMD+13]);
     assign next_inst_cond_rc  =     t_next_inst_cond'(curr_inst[OP_CMD+14]);
     assign loop_en            =          t_loop_mode'(curr_inst[OP_CMD+15]);
-    assign loop_bg_data       =           t_dflt_inv'(curr_inst[OP_CMD+16]);
-    assign loop_addr_seq      =           t_dflt_inv'(curr_inst[OP_CMD+17]);
+    assign inv_bg_data        =           t_dflt_inv'(curr_inst[OP_CMD+16]);
+    assign inv_addr_seq       =           t_dflt_inv'(curr_inst[OP_CMD+17]);
     assign jmp_to_inst        =                       curr_inst[INST-1:OP_CMD+18];
     
-    logic [BG_DATA-1:0] r_data_reg, next_data_reg, next_data_reg_dflt;
 
+
+
+
+    //---------------------------
+    //-- Declare signals for Addr Generators:
+    //---------------------------
     logic [ADDR_X-1:0]  r_addr_x_max, r_addr_x_min;
     logic [ADDR_X-1:0]  r_addr_ax_reg, r_addr_bx_reg;
     logic [ADDR_X-1:0]  next_addr_ax_reg, next_addr_bx_reg, next_addr_x_reg;
     logic [ADDR_X-1:0]  addr_x_op, addr_x_op_p1, addr_x_op_m1;
+    logic [ADDR_X-1:0]  addr_x_op_p1_bf_loop, addr_x_op_m1_bf_loop;
     logic [ADDR_X-1:0]  out_addr_x;
     logic               addr_x_max_carry, addr_x_min_carry;
 
@@ -189,6 +211,7 @@ import pmbist::*;
     logic [ADDR_Y-1:0]  r_addr_ay_reg, r_addr_by_reg;
     logic [ADDR_Y-1:0]  next_addr_ay_reg, next_addr_by_reg, next_addr_y_reg;
     logic [ADDR_Y-1:0]  addr_y_op, addr_y_op_p1, addr_y_op_m1;
+    logic [ADDR_Y-1:0]  addr_y_op_p1_bf_loop, addr_y_op_m1_bf_loop;
     logic [ADDR_Y-1:0]  out_addr_y;
     logic               addr_y_max_carry, addr_y_min_carry;
 
@@ -207,40 +230,12 @@ import pmbist::*;
     assign o_addr_x = out_addr_x;
     assign o_addr_y = out_addr_y;
 
+
+
     //---------------------------
-    //-- Data generator
+    //-- Address X generator
     //---------------------------
-    //in: out_addr_x/y, bg_data_type, bg_data_inv
-    always @(*) begin
-        case(bg_data_type)
-        AL: next_data_reg_dflt = r_data_reg;
-        CS: next_data_reg_dflt = out_addr_y[0]? ~r_data_reg : r_data_reg; 
-        RS: next_data_reg_dflt = out_addr_x[0]? ~r_data_reg : r_data_reg;
-        CB: next_data_reg_dflt = (out_addr_x[0] ^ out_addr_y[0])? ~r_data_reg : r_data_reg;
-        default: next_data_reg_dflt = r_data_reg;
-        endcase
-    end
-    always @(*) begin
-        case(bg_data_inv)
-        DFLT: next_data_reg =  next_data_reg_dflt;
-        INV : next_data_reg = ~next_data_reg_dflt;
-        default: next_data_reg =  next_data_reg_dflt;
-        endcase
-    end
-    
-    always @(posedge clk or negedge rstn) begin
-        if (~rstn) begin
-            r_data_reg <= '0;
-        end else begin
-            r_data_reg <= next_data_reg;
-        end
-    end 
-    assign o_data = r_data_reg;
-    
-    
-    //---------------------------
-    //-- Address x generator
-    //---------------------------
+    //select AX or BX for address operation:
     always @(*) begin
         case(apply_addr_reg)
         A         : addr_x_op = r_addr_ax_reg;
@@ -254,10 +249,15 @@ import pmbist::*;
         default   : addr_x_op = r_addr_ax_reg;
         endcase
     end
+
     assign addr_x_max_carry = (addr_x_op == r_addr_x_max);
     assign addr_x_min_carry = (addr_x_op == r_addr_x_min);
-    assign addr_x_op_p1 = (no_last_addr_count&next_inst_cond_sastified)? addr_x_op : addr_x_op +1;
-    assign addr_x_op_m1 = (no_last_addr_count&next_inst_cond_sastified)? addr_x_op : addr_x_op -1;
+
+    //address X operation:
+    assign addr_x_op_p1_bf_loop = (no_last_addr_count&next_inst_cond_sastified)? addr_x_op : addr_x_op +1;
+    assign addr_x_op_m1_bf_loop = (no_last_addr_count&next_inst_cond_sastified)? addr_x_op : addr_x_op -1;
+    assign addr_x_op_p1 = (inv_addr_seq&r_loop_reg[r_inst_ptr])? addr_x_op_m1_bf_loop : addr_x_op_p1_bf_loop;
+    assign addr_x_op_m1 = (inv_addr_seq&r_loop_reg[r_inst_ptr])? addr_x_op_p1_bf_loop : addr_x_op_m1_bf_loop;
     always @(*) begin
         case(addr_x_cmd)
         KEEP: next_addr_x_reg =  addr_x_op;
@@ -274,6 +274,7 @@ import pmbist::*;
         endcase
     end
 
+    //write back address X operation to AX or BX register:
     always @(*) begin
         case(apply_addr_reg)
         A         : next_addr_ax_reg = next_addr_x_reg;
@@ -301,6 +302,7 @@ import pmbist::*;
         endcase
     end
 
+    //AX and BX registers:
     always @(posedge clk or negedge rstn) begin
         if (~rstn) begin
             r_addr_ax_reg <= '0;
@@ -311,6 +313,7 @@ import pmbist::*;
         end
     end 
 
+    //Apply AX or BX to memories:
     always @(*) begin
         case(apply_addr_reg)
         A         : out_addr_x = r_addr_ax_reg;
@@ -324,6 +327,7 @@ import pmbist::*;
         default   : out_addr_x = r_addr_ax_reg;
         endcase
     end
+
 
 
     //---------------------------
@@ -344,10 +348,10 @@ import pmbist::*;
     end
     assign addr_y_max_carry = (addr_y_op == r_addr_y_max);
     assign addr_y_min_carry = (addr_y_op == r_addr_y_min);
-    //assign addr_y_op_p1 = addr_y_op +1;
-    //assign addr_y_op_m1 = addr_y_op -1;
-    assign addr_y_op_p1 = (no_last_addr_count&next_inst_cond_sastified)? addr_y_op : addr_y_op +1;
-    assign addr_y_op_m1 = (no_last_addr_count&next_inst_cond_sastified)? addr_y_op : addr_y_op -1;
+    assign addr_y_op_p1_bf_loop = (no_last_addr_count&next_inst_cond_sastified)? addr_y_op : addr_y_op +1;
+    assign addr_y_op_m1_bf_loop = (no_last_addr_count&next_inst_cond_sastified)? addr_y_op : addr_y_op -1;
+    assign addr_y_op_p1 = (inv_addr_seq&r_loop_reg[r_inst_ptr])? addr_y_op_m1_bf_loop : addr_y_op_p1_bf_loop;
+    assign addr_y_op_m1 = (inv_addr_seq&r_loop_reg[r_inst_ptr])? addr_y_op_p1_bf_loop : addr_y_op_m1_bf_loop;
     always @(*) begin
         case(addr_y_cmd)
         KEEP: next_addr_y_reg =  addr_y_op;
@@ -416,33 +420,6 @@ import pmbist::*;
     end
 
     //---------------------------
-    //-- Repeat Counter
-    //---------------------------
-    always @(posedge clk or negedge rstn) begin
-        if (~rstn) begin
-            r_rc_max <= RC_MAX;
-        end
-    end 
-
-    always @(*) begin
-        case(rpt_cntr_cmd)
-        RC_KEEP: next_rpt_cntr_reg = r_rpt_cntr_reg;
-        RC_INC : next_rpt_cntr_reg = r_rpt_cntr_reg +1;
-        default: next_rpt_cntr_reg = r_rpt_cntr_reg;
-        endcase
-    end
-    
-    always @(posedge clk or negedge rstn) begin
-        if (~rstn) begin
-            r_rpt_cntr_reg <= '0;
-        end else begin
-            r_rpt_cntr_reg <= next_rpt_cntr_reg;
-        end
-    end 
-    assign rc_carry = r_rpt_cntr_reg == r_rc_max;
-
-
-    //---------------------------
     //-- Loop Control block
     //---------------------------
     logic addr_x_carry, addr_y_carry;
@@ -507,20 +484,96 @@ import pmbist::*;
         end
     end
                                 
-    //TODO invert data, addr registers when enter loop
             
 
-    //for FPGA
+    //---------------------------
+    //-- Data generator
+    //---------------------------
+    //in: out_addr_x/y, bg_data_type, bg_data_inv
+    logic [BG_DATA-1:0] r_data_reg, next_data_reg, next_data_reg_dflt, next_data_reg_af_loop;
+
+    always @(*) begin
+        case(bg_data_type)
+        AL: next_data_reg_dflt = r_data_reg;
+        CS: next_data_reg_dflt = out_addr_y[0]? ~r_data_reg : r_data_reg; 
+        RS: next_data_reg_dflt = out_addr_x[0]? ~r_data_reg : r_data_reg;
+        CB: next_data_reg_dflt = (out_addr_x[0] ^ out_addr_y[0])? ~r_data_reg : r_data_reg;
+        default: next_data_reg_dflt = r_data_reg;
+        endcase
+    end
+    assign next_data_reg_af_loop = (inv_bg_data&r_loop_reg[r_inst_ptr])? ~next_data_reg_dflt : next_data_reg_dflt;
+    always @(*) begin
+        case(bg_data_inv)
+        DFLT   : next_data_reg =  next_data_reg_af_loop;
+        INV    : next_data_reg = ~next_data_reg_af_loop;
+        default: next_data_reg =  next_data_reg_af_loop;
+        endcase
+    end
+    
+    always @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            r_data_reg <= '0;
+        end else begin
+            r_data_reg <= next_data_reg;
+        end
+    end 
+    assign o_data = r_data_reg;
+    
+    //---------------------------
+    //-- Repeat Counter
+    //---------------------------
+    always @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            r_rc_max <= RC_MAX;
+        end
+    end 
+
+    always @(*) begin
+        case(rpt_cntr_cmd)
+        RC_KEEP: next_rpt_cntr_reg = r_rpt_cntr_reg;
+        RC_INC : next_rpt_cntr_reg = r_rpt_cntr_reg +1;
+        default: next_rpt_cntr_reg = r_rpt_cntr_reg;
+        endcase
+    end
+    
+    always @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            r_rpt_cntr_reg <= '0;
+        end else begin
+            r_rpt_cntr_reg <= next_rpt_cntr_reg;
+        end
+    end 
+    assign rc_carry = r_rpt_cntr_reg == r_rc_max;
+
+
+
+
+
+    //---------------------------
+    //-- For FPGA
+    //---------------------------
     initial begin
         r_inst_ptr = '0;
+    `ifdef PROG1
         microcode[0] = {4'd0 ,2'd0, 1'd0, 3'd0  ,1'd0,1'd0      , 3'd0 , 2'd0, 2'd1, 1'd0   ,2'd0, 2'd1};
         //              i0   ,_   ,nLoop, next: ,kpRC,lstAdCntOn, A    ,keepY,incX , bgDat  ,AL  , write
 
-        microcode[1] = {4'd0 ,2'd3, 1'd1, 3'd0  ,1'd0,1'd0      , 3'd1, 2'd0 , 2'd1, 1'd0   ,2'd3, 2'd2 };
+        microcode[1] = {4'd0 ,2'd3, 1'd1, 3'd0  ,1'd0,1'd0      , 3'd1, 2'd0 , 2'd1, 1'd1   ,2'd3, 2'd2 };
         //              i0   ,d+a , Loop, next: ,kpRC,lstAdCntOn, B    ,keepY,incX ,invBgDat,CB  , read
 
         microcode[2] = {4'd0 ,2'd3, 1'd1, 3'd1  ,1'd0,1'd0      , 3'd1, 2'd0 , 2'd1, 1'd0   ,2'd3, 2'd3 };
-        //              i0   ,d+a , Loop, nx:x  ,kpRC,lstAdCntOn, B    ,keepY,incX ,invBgDat,CB  , rmw
+        //              i0   ,d+a , Loop, nx:x  ,kpRC,lstAdCntOn, B    ,keepY,incX ,   BgDat,CB  , rmw
+    `endif
+    `ifdef PROG2
+        microcode[0] = {4'd0 ,2'd0, 1'd0, 3'd3  ,1'd0,1'd0      , 3'd0 , 2'd1, 2'd3, 1'd0   ,2'd0, 2'd1};
+        //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY ,chgX , bgDat  ,AL  , write
+
+        microcode[1] = {4'd1 ,2'd3, 1'd1, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd3, 1'd0   ,2'd0, 2'd3 };
+        //              i1   ,d+a , Loop, nxt:xy,kpRC,lstAdCntOf, A    ,incY ,chgX ,   BgDat,AL  , rmw
+
+        microcode[2] = {4'd0 ,2'd1, 1'd1, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd3, 1'd0   ,2'd0, 2'd2 };
+        //              i0   ,  a , Loop, nxt:xy,kpRC,lstAdCntOn, A    ,incY ,chgX ,   BgDat,AL  , read
+    `endif
 
         r_data_reg = 2'b10;
         r_addr_ax_reg = '0;
@@ -551,5 +604,7 @@ import pmbist::*;
        force i_shift_mode = 0;
     end
     `endif
+
+
 
 endmodule
