@@ -1,0 +1,38 @@
+inst no, AddrX     , AddrY , applyAddr, no wrap, OP   , DATA, next condition, loop mode    , jump to
+i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa end        , no loop      , next
+i1     , inc xa @ya, inc ya, A        , no wrap, rmw  , true, xa end        , inv addr&data, i1
+i2     , inc xa @ya, inc ya, A        , no wrap, read , true, xa end        , no loop      , next
+
+i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa end        , no loop      , next
+i1     , keep      , keep  , A        , no wrap, read , true, no cond       , no loop      , next
+i2     , inc xa @ya, inc ya, A        , no wrap, write, true, xa end        , inv addr&data, i1
+i3     , inc xa @ya, inc ya, A        , no wrap, read , true, xa end        , no loop      , next
+
+
+i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa ya end     
+i1     , inc xb @yb, inc yb, AcptoB   ,          writeH, inv, inc counterA
+i2     , inc xb @yb, inc yb, B        ,    wrap, rA0 rH1, true,inc counterA, CounterA end, 
+i3     , inc xa @ya, inc ya, A        ,    wrap, writeH, true,              , loop         , i1
+i4     ,                                         nop   ,                    , inv data     , i0
+
+
+LABEL: OP   , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLastAddrCount, RC_CMD   , NextInstrCondition, LoopMode                       , JmpTo
+       nop  , _ (AL)     , _ (DFLT)  , _        , _        , _ (A)       , _              , _        , _                 , _                              , _
+       read , CS         , inv BgData, inc x    , inc y    , B           , NoLastAddrCount, inc RC   , AX end            , Loop                           , LABEL
+       write, RS         ,           , dcr x    , drc y    , selAcptoB                               , AY end            , Loop - inv BgData - inv AddrSeq
+       rmw  , CB         ,           , chg x @y , chg y @x , selBcptoA                               , RC end              use 3b  
+       ...  ,                                              , selArlB                                 , AX-AY-RC end
+            ,                                              , selBrlA                                   use 3b for 3 conds
+            ,                                              , AxorB
+            ,                                              , selBrrA
+
+
+
+
+    assign next_inst_cond_x   = curr_inst[OP_CMD+12];
+    assign next_inst_cond_y   = curr_inst[OP_CMD+13];
+    assign next_inst_cond_rc  = curr_inst[OP_CMD+14];
+
+    assign loop_en            = curr_inst[OP_CMD+15];
+    assign loop_bg_data       = curr_inst[OP_CMD+16];
+    assign loop_addr_seq      = curr_inst[OP_CMD+17];
