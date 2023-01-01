@@ -1,0 +1,13 @@
+TODO:
+
+optimize loop circuit
+timing?
+
+netlist with many mems
+
+verify diagonal pattern
+
+
+clock switching circuit
+dpram support, multicycle operation, physcial-logical mapping
+

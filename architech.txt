@@ -1,38 +1,48 @@
-inst no, AddrX     , AddrY , applyAddr, no wrap, OP   , DATA, next condition, loop mode    , jump to
-i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa end        , no loop      , next
-i1     , inc xa @ya, inc ya, A        , no wrap, rmw  , true, xa end        , inv addr&data, i1
-i2     , inc xa @ya, inc ya, A        , no wrap, read , true, xa end        , no loop      , next
+label: OP    , BgDat, DATA, AddrX    , AddrY , applyAddr, no wrap, RC_CMD, next condition, loop mode    , jump to
 
-i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa end        , no loop      , next
-i1     , keep      , keep  , A        , no wrap, read , true, no cond       , no loop      , next
-i2     , inc xa @ya, inc ya, A        , no wrap, write, true, xa end        , inv addr&data, i1
-i3     , inc xa @ya, inc ya, A        , no wrap, read , true, xa end        , no loop      , next
+march12_ys algo:
+i0   : write              , inc xa@ya, inc ya, A        ,        ,         xa&ya end: next;             
+i1   : rmw                , inc xa@ya, inc ya, A        , no wrap,         xa&ya end: repeat i1: inv a&d;
+i2   : read               , inc xa@ya, inc ya, A        , no wrap,         xa&ya end: jmp    i0: inv d;            
+                            
+march12_xs algo:
+i0   : write              , inc xa, inc ya@xa, A                 ,         xa&ya end: next;
+i1   : read                                  , A                                                         
+i2   : write       , inv d, inc xa, inc ya@xa, A        , no wrap,         xa&ya end: repeat i1: inv a&d;
+i3   : read               , inc xa, inc ya@xa, A        , no wrap,         xa&ya end: jmp    i0: inv d;
+                   
+GALPAT (PINGPONG) - YS:                   
+i0   : write              , inc xa@ya, inc ya, A                 ,         xa&ya end: next;     
+i1   : writeH             , inc xb@yb, inc yb, selAcptoB         , inc RC;
+i2   :rA0 rH1             , inc xb@yb, inc yb, B                 , inc RC, RC end   : next; 
+i3   : writeH             , inc xa@ya, inc ya, A                                      jmp    i1;
+i4   :                                                                                jmp    i0: inv d;
 
+i0   : write              , inc xa@ya, inc ya, A                 ,         xa&ya end: next;     
+i1   : writeH             , inc xb@yb, inc yb, selAcptoB         , inc RC;
+i2   :rA0                 ,                    B                 ,                          
+i3   :rH1 , inv d         ,                    A                 ,                          
+i4   :rA0                 , inc xb@yb, inc yb, B                 , inc RC, RC end   : next; 
+i5   : writeH             , inc xa@ya, inc ya, A                                      jmp    i1;
+i6   :                                                                                jmp    i0: inv d;
 
-i0     , inc xa @ya, inc ya, A        ,    wrap, write, true, xa ya end     
-i1     , inc xb @yb, inc yb, AcptoB   ,          writeH, inv, inc counterA
-i2     , inc xb @yb, inc yb, B        ,    wrap, rA0 rH1, true,inc counterA, CounterA end, 
-i3     , inc xa @ya, inc ya, A        ,    wrap, writeH, true,              , loop         , i1
-i4     ,                                         nop   ,                    , inv data     , i0
+LABEL: OP    , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLastAddrCount, RC_CMD   , NextInstrCondition, LoopMode                       , JmpTo
+       nop   , _ (AL)     , _ (DFLT)  , _        , _        , _ (A)       , _              , _        , _                 , _                              , _
+       read  , CS         , inv BgData, chg x@y  , chg y@x  , B           , NoLastAddrCount, inc RC   , AX end            , Loop                           , LABEL
+       write , RS         ,           , inc x    , inc y    , selAcptoB                               , AY end            , Loop - inv BgData&AddrSeq
+       rmw   , CB         ,           , dec x    , dec y    , selBcptoA                               , RC end              use 3b  
+       ...   ,                                              , selArlB                                 , AX&AY&RC end
+             ,                                              , selBrlA                                   use 3b for 3 conds
+             ,                                              , AxorB
+             ,                                              , selBrrA
 
+repeat thi co the invert addr/data, jump thi ko
+chua thu truong hop co hon 3 nested loop, with different modified address/data 
 
-LABEL: OP   , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLastAddrCount, RC_CMD   , NextInstrCondition, LoopMode                       , JmpTo
-       nop  , _ (AL)     , _ (DFLT)  , _        , _        , _ (A)       , _              , _        , _                 , _                              , _
-       read , CS         , inv BgData, inc x    , inc y    , B           , NoLastAddrCount, inc RC   , AX end            , Loop                           , LABEL
-       write, RS         ,           , dcr x    , drc y    , selAcptoB                               , AY end            , Loop - inv BgData - inv AddrSeq
-       rmw  , CB         ,           , chg x @y , chg y @x , selBcptoA                               , RC end              use 3b  
-       ...  ,                                              , selArlB                                 , AX-AY-RC end
-            ,                                              , selBrlA                                   use 3b for 3 conds
-            ,                                              , AxorB
-            ,                                              , selBrrA
+1026 LEs
+434  Regs
 
+without loop control comb logic:
+528  LEs
+418  Regs
 
-
-
-    assign next_inst_cond_x   = curr_inst[OP_CMD+12];
-    assign next_inst_cond_y   = curr_inst[OP_CMD+13];
-    assign next_inst_cond_rc  = curr_inst[OP_CMD+14];
-
-    assign loop_en            = curr_inst[OP_CMD+15];
-    assign loop_bg_data       = curr_inst[OP_CMD+16];
-    assign loop_addr_seq      = curr_inst[OP_CMD+17];
