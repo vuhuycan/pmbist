@@ -3,8 +3,10 @@ quietly WaveActivateNextPane {} 0
 add wave -noupdate /microcode_container/clk
 add wave -noupdate /microcode_container/rstn
 add wave -noupdate /microcode_container/i_shift_mode
-add wave -noupdate /microcode_container/i_jmp_to_inst
-add wave -noupdate /microcode_container/i_jmp_en
+add wave -noupdate /microcode_container/si
+add wave -noupdate /microcode_container/so
+add wave -noupdate /microcode_container/o_end_of_prog
+add wave -noupdate /microcode_container/i_mbist_run
 add wave -noupdate /microcode_container/o_op_cmd
 add wave -noupdate /microcode_container/o_data
 add wave -noupdate -radix hexadecimal /microcode_container/o_addr_x
@@ -19,15 +21,15 @@ add wave -noupdate -group INS_FETCH /microcode_container/rpt_cntr_cmd
 add wave -noupdate -group INS_FETCH /microcode_container/next_inst_cond_x
 add wave -noupdate -group INS_FETCH /microcode_container/next_inst_cond_y
 add wave -noupdate -group INS_FETCH /microcode_container/next_inst_cond_rc
-add wave -noupdate -group INS_FETCH /microcode_container/loop_en
+add wave -noupdate -group INS_FETCH /microcode_container/loop_mode
 add wave -noupdate -group INS_FETCH /microcode_container/inv_bg_data
 add wave -noupdate -group INS_FETCH /microcode_container/inv_addr_seq
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_ax_reg
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_ay_reg
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_bx_reg
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_by_reg
-add wave -noupdate -expand -group flowCTRL /microcode_container/next_loop_reg
-add wave -noupdate -expand -group flowCTRL /microcode_container/r_loop_reg
+add wave -noupdate -expand -group flowCTRL -radix hexadecimal /microcode_container/next_loop_reg
+add wave -noupdate -expand -group flowCTRL -radix hexadecimal /microcode_container/r_loop_reg
 add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_mask
 add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_sastified
 add wave -noupdate -expand -group flowCTRL /microcode_container/jmp_en
@@ -38,7 +40,6 @@ add wave -noupdate -expand -group uCode -radix hexadecimal /microcode_container/
 add wave -noupdate -expand -group uCode -radix hexadecimal /microcode_container/microcode
 add wave -noupdate -expand -group uCode -radix hexadecimal /microcode_container/curr_inst
 add wave -noupdate -expand -group DatGen /microcode_container/bg_data_inv
-add wave -noupdate -expand -group DatGen /microcode_container/bg_data_inv_af_loop
 add wave -noupdate -expand -group DatGen /microcode_container/next_data_reg
 add wave -noupdate -expand -group DatGen /microcode_container/r_data_reg
 add wave -noupdate /microcode_container/r_addr_x_max
@@ -76,9 +77,11 @@ add wave -noupdate /microcode_container/addr_y_carry
 add wave -noupdate /microcode_container/addr_x_cmd_af_loop
 add wave -noupdate /microcode_container/addr_y_cmd_af_loop
 add wave -noupdate /microcode_container/r_inv_addr_en
+add wave -noupdate /microcode_container/loop_reg_id
+add wave -noupdate /microcode_container/repeat_en
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {28692 ps} 1} {{Cursor 2} {28590 ps} 0}
-quietly wave cursor active 2
+WaveRestoreCursors {{Cursor 1} {158890 ps} 0} {{Cursor 2} {76892 ps} 1}
+quietly wave cursor active 1
 configure wave -namecolwidth 300
 configure wave -valuecolwidth 100
 configure wave -justifyvalue left
@@ -93,4 +96,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {3736 ps}
+WaveRestoreZoom {0 ps} {294 ns}

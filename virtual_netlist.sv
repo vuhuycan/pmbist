@@ -38,7 +38,7 @@ input logic clk, rstn;
     
 pmbist_top ins_pmbist_top
 (
-    clk, rstn,
+    clk, 1'b1,//rstn, FPGA doesn't need this pin
     
     select,
     capture_en,
@@ -76,7 +76,7 @@ pmbist_top ins_pmbist_top
 
 mem_interface #(.MEM_ADR_X(MEM0_ADR_X),.MEM_ADR_Y(MEM0_ADR_Y),.MEM_DATA(MEM0_DATA)) mem0_intf
 (
-    clk, rstn,
+    clk, 1'b1,//rstn, FPGA doesn't need this pin
     
     addr_x,
     addr_y,

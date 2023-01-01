@@ -13,7 +13,9 @@ package pmbist;
     parameter LOOP_MODE = 2;
     parameter INV_ADR_SEQ = 1;
     parameter INV_DAT_BG = 1;
-    parameter INST = OP_CMD + BG_DT_TYPE + BG_DT_INV + ADR_CMD*2 + APPL_ADR_CMD + NO_LAST_ADR_CNT + RC_CMD + NEXT_INST_COND*3 + LOOP_MODE + INV_ADR_SEQ + INV_DAT_BG + INST_NUM_W;
+    parameter LOOP_NUM  = 3;//INST_NUM/2;
+    parameter LOOP_NUM_W = $clog2(LOOP_NUM);
+    parameter INST = OP_CMD + BG_DT_TYPE + BG_DT_INV + ADR_CMD*2 + APPL_ADR_CMD + NO_LAST_ADR_CNT + RC_CMD + NEXT_INST_COND*3 + LOOP_MODE + LOOP_NUM_W + INV_ADR_SEQ + INV_DAT_BG + INST_NUM_W;
     
     parameter BG_DATA = 2;
     parameter ADDR_X  = 2;
@@ -28,11 +30,11 @@ package pmbist;
     parameter MEM_NUM  = 1;
 
 
-//LABEL: OP   , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLastAddrCount, RC_CMD   , NextInstrCondition, LoopMode                       , JmpTo
-//       nop  , _ (AL)     , _ (DFLT)  , _        , _        , _ (A)       , _              , _        , _                 , _                              , _
-//       read , CS         , inv BgData, inc x    , inc y    , B           , NoLastAddrCount, inc RC   , AX end            , Loop                           , LABEL
-//       write, RS         ,           , dcr x    , drc y    , selAcptoB                               , AY end            , Loop - inv BgData - inv AddrSeq
-//       rmw  , CB         ,           , chg x @y , chg y @x , selBcptoA                               , RC end              use 3b  
+//LABEL: OP   , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLastAddrCount, RC_CMD   , NextInstrCondition, LoopMode  , Loop modification    , LoopReg , JmpTo
+//       nop  , _ (AL)     , _ (DFLT)  , _        , _        , _ (A)       , _              , _        , _                 , _           _                    , _       , _    
+//       read , CS         , inv BgData, inc x    , inc y    , B           , NoLastAddrCount, inc RC   , AX end            , Jump        inv BgData           , n       , LABEL
+//       write, RS         ,           , dcr x    , drc y    , selAcptoB                               , AY end            , repeat    , inv AddrSeq
+//       rmw  , CB         ,           , chg x @y , chg y @x , selBcptoA                               , RC end              nestedLoop, inv BgData & AddrSeq
 //       ...  ,                                              , selArlB                                 , AX-AY-RC end
 //            ,                                              , selBrlA                                   use 3b for 3 conds
 //            ,                                              , AxorB
@@ -86,8 +88,9 @@ package pmbist;
     } t_next_inst_cond;
     typedef enum logic[1:0] {
         NO_LOOP = '0,
-        REPEAT, //repeat from LABEL to current Inst once, when NextInstCond is true
-        JUMP    //jump to LABEL every time, until NextInstCond is true
+        JUMP,        //jump to LABEL every time, until NextInstCond is true
+        REPEAT,      //repeat from LABEL to current Inst once, when NextInstCond is true
+        NESTED_LOOP  //same as REPEAT, but jump over other Inst(s), create nested loops.
     } t_loop_mode;
     
 endpackage
