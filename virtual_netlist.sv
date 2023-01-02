@@ -1,3 +1,5 @@
+`timescale 1ps/1ps
+
 module virtual_netlist
 (
     clk, rstn,
@@ -16,9 +18,9 @@ input logic clk, rstn;
     output logic so;
     
     import pmbist::*;
-    parameter BG_DATA = 2;
-    parameter ADDR_X  = 3;
-    parameter ADDR_Y  = 4;
+    //parameter BG_DATA = 2;
+    //parameter ADDR_X  = 3;
+    //parameter ADDR_Y  = 4;
     
     logic [BG_DATA-1:0] data;
     logic [ADDR_X-1:0]  addr_x;
@@ -187,17 +189,51 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         force update_en = 0;
     end
     endtask    
+    task shift;
+    begin
+        force select = 1;
+        force capture_en = 1;
+        force shift_en = 0;
+        force update_en = 0;
+        force si = 0;
+        pulse_clk;
+        force capture_en = 0;
+        force shift_en = 1;
+        force update_en = 0;
+        force si = 0;
+        for (int i=0; i <=3; i =i+1) pulse_clk;
+        force si = 1;
+        for (int i=4; i <=5; i =i+1) pulse_clk;
+        force si = 0;
+        for (int i=6; i <=471; i =i+1) pulse_clk;
+        force capture_en = 0;
+        force shift_en = 0;
+        force update_en = 1;
+        force si = 0;
+        pulse_clk;
+        force capture_en = 0;
+        force shift_en = 0;
+        force update_en = 0;
+    end
+    endtask    
     initial begin
         pulse_clk;
         setup;
-        for (int i=0; i <210; i =i+1) pulse_clk;
+        for (int i=0; i <210; i =i+1) pulse_clk; //for march12 - word num = 2**4
+        //for (int i=0; i <1660; i =i+1) pulse_clk; //for march12 - word num = 2**7
         result;
         for (int i=0; i <3; i =i+1) pulse_clk;
-        setup;
-        for (int i=0; i <100; i =i+1) pulse_clk;
-        result;
-        for (int i=0; i <110; i =i+1) pulse_clk;
-        result;
+
+	shift;
+	
+        //setup;
+        //for (int i=0; i <100; i =i+1) pulse_clk;
+        //result;
+        //for (int i=0; i <110; i =i+1) pulse_clk;
+        //result;
+        //for (int i=0; i <9; i =i+1) pulse_clk;
+
+	//$stop;
         forever pulse_clk;
     end
 
@@ -244,7 +280,9 @@ module ram_sp_sr_sw (
   // output : When we = 0, oe = 1, cs = 1
   //assign data = (cs && oe &&  ! we) ? data_out : 8'bz;
   //assign data_output = (cs && oe &&  ! we) ? data_out : 8'bz;
+  
   assign data_output = data_out;
+  //assign data_output = ( address==10 )? '1 : data_out; 
 
   // Memory Write Block
   // Write Operation : When we = 1, cs = 1

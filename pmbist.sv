@@ -145,7 +145,7 @@ import pmbist::*;
     
     input  logic select, capture_en, shift_en, update_en, si;
     output logic so;
-    logic mbist_start, mbist_run, mbist_done, shift_setup, shift_result;
+    logic mbist_start, mbist_run, mbist_done, shift_setup, shift_result, end_of_prog;
     output logic o_shift_result;
     assign o_shift_result = shift_result;
     
@@ -187,6 +187,7 @@ import pmbist::*;
     always @(*) begin
         case(r_state)
         IDLE : begin
+            mbist_done = '0;
             if (mbist_start) begin
                 next_stage = RUN;
                 mbist_run  = '1;
@@ -196,7 +197,8 @@ import pmbist::*;
             end
         end
         RUN  : begin
-            if (mbist_done) begin
+            mbist_done = '0;
+	    if (end_of_prog) begin
                 next_stage = DONE;//IDLE;
                 mbist_run  = '0;
             end else begin
@@ -205,9 +207,10 @@ import pmbist::*;
             end
         end    
         DONE : begin
+            mbist_done = '1;
             //if (shift_setup | shift_result) begin
             if (capture_en) begin
-                next_stage = IDLE;
+                next_stage = DONE;//IDLE;
                 mbist_run  = '0;
             end else begin
                 next_stage = DONE;
@@ -230,7 +233,7 @@ import pmbist::*;
     clk, rstn,
     
     shift_setup,setup_chain_si,setup_chain_so,//si, so,
-    mbist_done,
+    end_of_prog,
     mbist_run,
     
     op_cmd,

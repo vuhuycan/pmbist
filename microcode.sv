@@ -1,4 +1,5 @@
-//`define MARCH12_XS
+`define MARCH12_XS
+//`define PROG1
 `timescale 1ps/1ps
 
 module microcode_container
@@ -451,6 +452,12 @@ import pmbist::*;
     //        end
     //    end
     //end
+    //TODO when run test again, this reg is not reseted => no more loop on the
+    //2nd mbist run onward. also, fail flags in memories are not reseted when
+    //run mbist again. 
+    // => Need to implement a reset scheme for it?
+    //TODO when there're more than 3 loops, looping sequence messed up. Magic
+    //code below doesn't work anymore.
     always @(*) begin
         if ( ~r_loop_reg[loop_reg_id] & next_inst_cond_sastified ) begin
             if ( loop_mode==REPEAT ) begin
@@ -574,7 +581,7 @@ import pmbist::*;
     initial begin
         r_inst_ptr = 'hf;
         
-        for (int i =0; i <INST_NUM; i =i+1) microcode[i] = '0;
+        
         
         r_data_reg = 2'b0;
         r_addr_ax_reg = '0;
@@ -595,16 +602,17 @@ import pmbist::*;
 
 
 
-    initial #1 begin
+    initial begin
+	 for (int i =0; i <INST_NUM; i =i+1) microcode[i] = '0;
     `ifdef PROG1
-        microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 , 2'd0, 2'd1, 1'd0   ,2'd0, 2'd1};
-        //              i0   ,_   ,nLoop, next: ,kpRC,lstAdCntOn, A    ,keepY,incX , bgDat  ,AL  , write
+        microcode[0] = {4'd0 ,2'd0, 2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 , 2'd0, 2'd0, 1'd0   ,2'd0, 2'd1};
+        //              i0   ,    , _   ,nLoop, next: ,kpRC,lstAdCntOn, A    ,keepY,incX , bgDat  ,AL  , write
 
-        microcode[1] = {4'd0 ,2'd3, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd1, 2'd0 , 2'd1, 1'd1   ,2'd3, 2'd2 };
-        //              i0   ,d+a , Loop, next: ,kpRC,lstAdCntOn, B    ,keepY,incX ,invBgDat,CB  , read
+        microcode[1] = {4'd0 ,2'd0, 2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2 };
+        //              i0   ,    , d+a , Loop, next: ,kpRC,lstAdCntOn, B    ,keepY,incX ,invBgDat,CB  , read
 
-        microcode[2] = {4'd0 ,2'd3, 2'd1, 3'd1  ,1'd0,1'd0      , 3'd1, 2'd0 , 2'd1, 1'd0   ,2'd3, 2'd3 };
-        //              i0   ,d+a , Loop, nx:x  ,kpRC,lstAdCntOn, B    ,keepY,incX ,   BgDat,CB  , rmw
+        microcode[2] = {4'hf ,2'd0, 2'd0, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0 };
+        //              i0   ,    ,     , jump, nx:   ,kpRC,lstAdCntOn, B    ,keepY,incX ,   BgDat,CB  , nop
     `elsif PROG2 //compact MARCH12
         microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
         //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY ,chgX , bgDat  ,AL  , write

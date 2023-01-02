@@ -1,3 +1,5 @@
+`timescale 1ps/1ps
+
 module ctrl_sigs_gen
 import pmbist::*;
 (
@@ -114,9 +116,9 @@ import pmbist::*;
     input  logic i_shift_mode, si;
     output logic so;
     
-    logic [ADDR_X-1:0] ax_max_mask;
-    logic [ADDR_Y-1:0] ay_max_mask;
-    logic              mem_test_en;
+    logic  ax_max_mask;
+    logic  ay_max_mask;
+    logic  mem_test_en;
     
     generate if (MEM_ADR_X_MAX < ADDR_X_MAX) 
         assign ax_max_mask = ~( i_addr_x > MEM_ADR_X_MAX );
