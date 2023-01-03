@@ -28,11 +28,14 @@ add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_cont
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_ay_reg
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_bx_reg
 add wave -noupdate -expand -group {addr regs} -radix hexadecimal /microcode_container/r_addr_by_reg
+add wave -noupdate -expand -group flowCTRL /microcode_container/repeat_en
+add wave -noupdate -expand -group flowCTRL /microcode_container/jmp_en
+add wave -noupdate -expand -group flowCTRL /microcode_container/r_first_cycle_of_inst
+add wave -noupdate -expand -group flowCTRL /microcode_container/loop_reg_id
 add wave -noupdate -expand -group flowCTRL -radix hexadecimal /microcode_container/next_loop_reg
 add wave -noupdate -expand -group flowCTRL -radix hexadecimal /microcode_container/r_loop_reg
 add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_mask
 add wave -noupdate -expand -group flowCTRL /microcode_container/next_inst_cond_sastified
-add wave -noupdate -expand -group flowCTRL /microcode_container/jmp_en
 add wave -noupdate -expand -group flowCTRL -radix hexadecimal /microcode_container/r_inst_ptr
 add wave -noupdate -expand -group uCode -radix hexadecimal /microcode_container/jmp_to_inst
 add wave -noupdate -expand -group uCode -radix hexadecimal /microcode_container/next_inst_ptr
@@ -77,10 +80,8 @@ add wave -noupdate /microcode_container/addr_y_carry
 add wave -noupdate /microcode_container/addr_x_cmd_af_loop
 add wave -noupdate /microcode_container/addr_y_cmd_af_loop
 add wave -noupdate /microcode_container/r_inv_addr_en
-add wave -noupdate /microcode_container/loop_reg_id
-add wave -noupdate /microcode_container/repeat_en
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {158890 ps} 0} {{Cursor 2} {76892 ps} 1}
+WaveRestoreCursors {{Cursor 1} {38844 ps} 0} {{Cursor 2} {76892 ps} 1}
 quietly wave cursor active 1
 configure wave -namecolwidth 300
 configure wave -valuecolwidth 100
@@ -96,4 +97,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {294 ns}
+WaveRestoreZoom {19152 ps} {41360 ps}

@@ -1,4 +1,4 @@
-`define MARCH12_XS
+//`define MARCH12_XS
 //`define PROG1
 `timescale 1ps/1ps
 
@@ -69,9 +69,12 @@ import pmbist::*;
     //-- Instruction Pointer:
     //---------------------------
     assign o_end_of_prog = r_inst_ptr==(INST_NUM-1) & next_inst_cond_sastified;
-    //assign jmp_en = ((loop_mode==REPEAT) & ~r_loop_reg[r_inst_ptr] & next_inst_cond_sastified) | (loop_mode==JUMP & ~next_inst_cond_sastified);
-    assign repeat_en = (loop_mode==REPEAT|loop_mode==NESTED_LOOP) & next_inst_cond_sastified;
-    assign jmp_en = (repeat_en & ~r_loop_reg[loop_reg_id]) | (loop_mode==JUMP & ~next_inst_cond_sastified);
+
+    assign repeat_en = (loop_mode==REPEAT) & next_inst_cond_sastified;
+    assign jmp_en = (repeat_en & r_loop_reg[loop_reg_id]) | (loop_mode==JUMP & ~next_inst_cond_sastified);
+
+    logic r_first_cycle_of_inst; //TODO not an acurate name. its correct name is "first cycle of instruction N, counted up from N-1, not branched from looping. 
+    always @(posedge clk) r_first_cycle_of_inst <= i_mbist_run & next_inst_cond_sastified &~jmp_en;
 
     assign next_inst_ptr =  //o_end_of_prog             ? r_inst_ptr    :
                             //~i_mbist_run              ? r_inst_ptr    :
@@ -89,6 +92,41 @@ import pmbist::*;
     end 
     assign inst_ptr_so = r_inst_ptr[INST_NUM_W-1];
     
+    //---------------------------
+    //-- Loop Control block
+    //---------------------------
+    logic[2:0] next_inst_cond_mask;
+
+    assign next_inst_cond_mask = ~{next_inst_cond_x,next_inst_cond_y,next_inst_cond_rc};
+    assign next_inst_cond_sastified = &( next_inst_cond_mask | {addr_x_carry,addr_y_carry,rc_carry} );
+
+    //TODO when run test again, this reg is not reseted => no more loop on the
+    //2nd mbist run onward. also, fail flags in memories are not reseted when
+    //run mbist again. 
+    // => Need to implement a reset scheme for it?
+    //
+    //TODO not tested with 2 loops with same START_LOOP instruction yet.
+    always @(*) begin
+        next_loop_reg = r_loop_reg;
+        if ( loop_mode==START_LOOP & r_first_cycle_of_inst ) begin
+            next_loop_reg[loop_reg_id] = '1;
+        end else if ( repeat_en & r_loop_reg[loop_reg_id] ) begin
+            next_loop_reg[loop_reg_id] = '0;
+        end
+    end
+    
+    always @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            r_loop_reg <= '0;
+        end else if (i_shift_mode) begin
+            r_loop_reg <= {r_loop_reg[LOOP_NUM-2:0],r_addr_by_reg_so};
+        end else begin
+            r_loop_reg <= next_loop_reg;
+        end
+    end 
+    logic r_loop_reg_so;
+    assign r_loop_reg_so = r_loop_reg[LOOP_NUM-1];
+
     
 
     //---------------------------
@@ -179,16 +217,9 @@ import pmbist::*;
 
     logic r_inv_addr_en;
     always @(posedge clk or negedge rstn) begin
-    //always @(posedge clk) begin
         if (~rstn) begin
             r_inv_addr_en <= '0;
-        //end else 
-        //if (jmp_en & inv_addr_seq) begin
-        //    r_inv_addr_en <= ~r_inv_addr_en;
-            //r_inv_addr_en <= '1;
-        //if (next_inst_cond_sastified & (loop_mode==REPEAT|loop_mode==NESTED_LOOP) & inv_addr_seq) begin
         end else if (repeat_en & inv_addr_seq) begin
-            //r_inv_addr_en <= '0;
             r_inv_addr_en <= ~r_inv_addr_en;
         end else begin
             r_inv_addr_en <= r_inv_addr_en;
@@ -382,9 +413,9 @@ import pmbist::*;
         selAcptoB : next_addr_ay_reg =    r_addr_ay_reg;
         selBcptoA : next_addr_ay_reg =  next_addr_y_reg;
         selArlB   : next_addr_ay_reg =    r_addr_ay_reg;
-        selBrlA   : next_addr_ay_reg = {next_addr_y_reg[ADDR_X-2:0],next_addr_y_reg[ADDR_X-1]};
+        selBrlA   : next_addr_ay_reg = {next_addr_y_reg[ADDR_Y-2:0],next_addr_y_reg[ADDR_Y-1]};
         AxorB     : next_addr_ay_reg =  next_addr_y_reg;
-        selBrrA   : next_addr_ay_reg = {next_addr_y_reg[0],next_addr_y_reg[ADDR_X-1:1]};
+        selBrrA   : next_addr_ay_reg = {next_addr_y_reg[0],next_addr_y_reg[ADDR_Y-1:1]};
         default   : next_addr_ay_reg =  next_addr_y_reg;
         endcase
     end
@@ -394,7 +425,7 @@ import pmbist::*;
         B         : next_addr_by_reg =  next_addr_y_reg;
         selAcptoB : next_addr_by_reg =  next_addr_y_reg;
         selBcptoA : next_addr_by_reg =    r_addr_by_reg;
-        selArlB   : next_addr_by_reg = {next_addr_y_reg[ADDR_X-2:0],next_addr_y_reg[ADDR_X-1]};
+        selArlB   : next_addr_by_reg = {next_addr_y_reg[ADDR_Y-2:0],next_addr_y_reg[ADDR_Y-1]};
         selBrlA   : next_addr_by_reg =    r_addr_by_reg;
         AxorB     : next_addr_by_reg =    r_addr_by_reg;
         selBrrA   : next_addr_by_reg =    r_addr_by_reg;
@@ -432,71 +463,10 @@ import pmbist::*;
     end
 
     //---------------------------
-    //-- Loop Control block
-    //---------------------------
-    logic[2:0] next_inst_cond_mask;
-
-    assign next_inst_cond_mask = ~{next_inst_cond_x,next_inst_cond_y,next_inst_cond_rc};
-    assign next_inst_cond_sastified = &( next_inst_cond_mask | {addr_x_carry,addr_y_carry,rc_carry} );
-
-    //always @(*) begin
-    //    for (int i =0; i <INST_NUM; i =i+1) begin
-    //        if ( i < r_inst_ptr ) begin
-    //        next_loop_reg[i] = '0;
-    //        end
-    //        else begin 
-    //        next_loop_reg[i] = r_loop_reg[i];
-    //        end
-    //        if ( ~next_loop_reg[r_inst_ptr] ) begin
-    //        next_loop_reg[r_inst_ptr] = (loop_mode==REPEAT)? next_inst_cond_sastified : r_loop_reg[r_inst_ptr];
-    //        end
-    //    end
-    //end
-    //TODO when run test again, this reg is not reseted => no more loop on the
-    //2nd mbist run onward. also, fail flags in memories are not reseted when
-    //run mbist again. 
-    // => Need to implement a reset scheme for it?
-    //TODO when there're more than 3 loops, looping sequence messed up. Magic
-    //code below doesn't work anymore.
-    always @(*) begin
-        if ( ~r_loop_reg[loop_reg_id] & next_inst_cond_sastified ) begin
-            if ( loop_mode==REPEAT ) begin
-                next_loop_reg = (r_loop_reg<<1) +1;
-            end else if ( loop_mode == NESTED_LOOP & next_inst_cond_sastified ) begin
-                next_loop_reg = r_loop_reg+1;
-            end else begin
-                next_loop_reg = r_loop_reg;
-            end
-        end else begin
-            next_loop_reg = r_loop_reg;
-        end
-    end
-    
-    always @(posedge clk or negedge rstn) begin
-        if (~rstn) begin
-            r_loop_reg <= '0;
-        end else if (i_shift_mode) begin
-            r_loop_reg <= {r_loop_reg[LOOP_NUM-2:0],r_addr_by_reg_so};
-        end else begin
-            r_loop_reg <= next_loop_reg;
-        end
-    end 
-    logic r_loop_reg_so;
-    assign r_loop_reg_so = r_loop_reg[LOOP_NUM-1];
-
-    
-
-    //---------------------------
     //-- Data Generator
     //---------------------------
     //in: out_addr_x/y, bg_data_type, bg_data_inv
     logic [BG_DATA-1:0] r_data_reg, next_data_reg;
-    //t_dflt_inv bg_data_inv_af_loop;
-
-    //assign bg_data_inv_af_loop = (inv_bg_data&r_loop_reg[r_inst_ptr])? ~bg_data_inv : bg_data_inv;
-    //assign bg_data_inv_af_loop =t_dflt_inv'( (inv_bg_data&r_loop_reg[r_inst_ptr]) ^ bg_data_inv );
-
-    //assign bg_data_inv_af_loop =t_dflt_inv'( (jmp_en) ^ bg_data_inv );
 
     always @(*) begin
         case(bg_data_type)
@@ -513,9 +483,6 @@ import pmbist::*;
             r_data_reg <= '0;
         end else if (i_shift_mode) begin
             r_data_reg <= {r_data_reg[BG_DATA-2:0],r_loop_reg_so};
-        //end else if ( jmp_en & inv_bg_data ) begin
-        //    r_data_reg <= ~next_data_reg;
-        //end else if (next_inst_cond_sastified & loop_mode==REPEAT & inv_bg_data) begin
         end else if (repeat_en & inv_bg_data) begin
             r_data_reg <= ~next_data_reg;
         end else begin
@@ -625,17 +592,17 @@ import pmbist::*;
 
 
     `elsif MARCH12_XS
-        microcode[0] = {4'd0 ,2'd0  ,DFLT,DFLT,NO_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
+        microcode[0] = {4'd0 ,2'd1  ,DFLT,DFLT,START_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
         //              i0   ,lpreg ,_  ,    ,nLoop  ,                 nxt:xy,kpRC   ,lstAdCntOn       ,   A  ,chgY,incX,bgDat,AL,write
 
-        microcode[1] = {4'd0 ,2'd0  ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
+        microcode[1] = {4'd0 ,2'd0  ,2'd0, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
         //              i0   ,lpreg ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A    ,keepY,keepX,   BgDat,AL  , read
         microcode[2] = {4'd1 ,2'd0  ,2'd0, 2'd1, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd2, 1'd1   ,2'd0, 2'd1 };
         //              i1   ,lpreg ,    , jump, nxt:xy,kpRC,lstAdCntOf, A    ,chgY ,incX ,invBgDat,AL  , write
-        microcode[3] = {4'd1 ,2'd0  ,2'd3, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+        microcode[3] = {4'd1 ,2'd0  ,2'd3, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
         //              i1   ,lpreg ,iA+D,nstLp, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
 
-        microcode[4] = {4'd0 ,2'd1  ,2'd1, 2'd3, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
+        microcode[4] = {4'd0 ,2'd1  ,2'd1, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
         //              i0   ,lpreg ,  d ,nstLp, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX ,   BgDat,AL  , read
 
 
@@ -654,7 +621,7 @@ import pmbist::*;
         //              i0   ,invD, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
 
     `elsif GALPAT_YS
-        microcode[0] = {4'd0 ,2'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
+        microcode[0] = {4'd0 ,2'd0 ,2'd0, 2'd3, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
         //              i0   ,lpreg,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
 
 
@@ -663,7 +630,7 @@ import pmbist::*;
 
         microcode[2] = {4'd0 ,2'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd1 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2};
         //              i0   ,lpreg,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, B                 , bgDat  ,AL  , read
-        microcode[3] = {4'd0 ,2'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd1 ,2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2};
+        microcode[3] = {4'd0 ,2'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2};
         //              i0   ,lpreg,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A                 ,invBgDat,AL  , read
         microcode[4] = {4'd2 ,2'd0 ,2'd0, 2'd1, 3'd4  ,1'd1,1'd0      , 3'd1 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd0};
         //              i2   ,lpreg,_   , jmp , nxt:rc,inRC,lstAdCntOn, B    ,incY , chgX , bgDat  ,AL  , nop
@@ -671,40 +638,40 @@ import pmbist::*;
         microcode[5] = {4'd1 ,2'd0 ,2'd0, 2'd1, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
         //              i1   ,lpreg,_   , jmp , nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
 
-        microcode[6] = {4'd0 ,2'd0 ,2'd1, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+        microcode[6] = {4'd0 ,2'd0 ,2'd1, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
         //              i0   ,lpreg,invD,nstLp, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
         
 
     `elsif MARCH12_XS_TESTLOOP
-        microcode[0] = {4'd0 ,2'd0  ,DFLT,DFLT,NO_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
+        microcode[0] = {4'd0 ,2'd1  ,DFLT,DFLT,START_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
         //              i0   ,lpreg ,_  ,    ,nLoop  ,                 nxt:xy,kpRC   ,lstAdCntOn       ,   A  ,chgY,incX,bgDat,AL,write
 
-        microcode[1] = {4'd0 ,2'd0  ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
+        microcode[1] = {4'd0 ,2'd0  ,2'd0, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
         //              i0   ,lpreg ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A    ,keepY,keepX,   BgDat,AL  , read
         microcode[2] = {4'd1 ,2'd0  ,2'd0, 2'd1, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd2, 1'd1   ,2'd0, 2'd1 };
         //              i1   ,lpreg ,    , jump, nxt:xy,kpRC,lstAdCntOf, A    ,chgY ,incX ,invBgDat,AL  , write
-        microcode[3] = {4'd1 ,2'd0  ,2'd3, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+        microcode[3] = {4'd1 ,2'd0  ,2'd3, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
         //              i1   ,lpreg ,iA+D,nstLp, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
 
-        microcode[4] = {4'd0 ,2'd1  ,2'd1, 2'd3, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
+        microcode[4] = {4'd0 ,2'd1  ,2'd1, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
         //              i0   ,lpreg ,  d ,nstLp, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX ,   BgDat,AL  , read
 
 
-        microcode[5] = {4'd0 ,2'd0  ,DFLT,DFLT,NO_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
+        microcode[5] = {4'd0 ,2'd2  ,DFLT,DFLT,START_LOOP,NO_COND,END_CNT,END_CNT,RC_KEEP,LAST_ADDR_CNT_ON ,   A   ,CHG,INC,DFLT,AL,WRITE};
         //              i0   ,lpreg ,_  ,    ,nLoop  ,                 nxt:xy,kpRC   ,lstAdCntOn       ,   A  ,chgY,incX,bgDat,AL,write
 
-        microcode[6] = {4'd0 ,2'd0  ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
+        microcode[6] = {4'd0 ,2'd3  ,2'd0, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
         //              i0   ,lpreg ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A    ,keepY,keepX,   BgDat,AL  , read
         microcode[7] = {4'd6 ,2'd0  ,2'd0, 2'd1, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd2, 1'd1   ,2'd0, 2'd1 };
         //              i6   ,lpreg ,    , jump, nxt:xy,kpRC,lstAdCntOf, A    ,chgY ,incX ,invBgDat,AL  , write
-        microcode[8] = {4'd6 ,2'd2  ,2'd3, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+        microcode[8] = {4'd6 ,2'd3  ,2'd3, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
         //              i6   ,lpreg ,iA+D,   Lp, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
 
-        microcode[9] = {4'd5 ,2'd3  ,2'd1, 2'd3, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
+        microcode[9] = {4'd5 ,2'd2  ,2'd1, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
         //              i5   ,lpreg ,  d ,nstLp, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX ,   BgDat,AL  , read
 
 
-        microcode[10] = {4'd0 ,2'd4 ,2'd1, 2'd3, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+        //microcode[10] = {4'd0 ,2'd4 ,2'd1, 2'd2, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
         //              i0   ,lpreg,invD,nstLp, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
         
 

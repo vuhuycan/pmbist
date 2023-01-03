@@ -61,7 +61,7 @@ end
 initial begin    
     clk = 0;
     //    force DUT.microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
-    //    //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
+    //    //                        i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
 	//
 	//
     //    force DUT.microcode[1] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd1,1'd0      , 3'd2 ,2'd2 , 2'd1, 1'd1   ,2'd0, 2'd1};
@@ -72,13 +72,13 @@ initial begin
     //    force DUT.microcode[3] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2};
     //    //                        i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A                ,invBgDat,AL  , read
     //    force DUT.microcode[4] = {4'd2 ,2'd0, 2'd2, 3'd4  ,1'd1,1'd0      , 3'd1 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd0};
-    //    //                        i2   ,_   , jmp , nxt:rc,inRC,lstAdCntOn, B    ,incY , chgX , bgDat  ,AL  , nop
+    //    //                        i2   ,_   , jmp , nxt:rc,inRC,lstAdCntOn, B    ,incY , chgX, bgDat  ,AL  , nop
 	//
     //    force DUT.microcode[5] = {4'd1 ,2'd0, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
-    //    //              i1   ,_   , jmp , nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
+    //    //                        i1   ,_   , jmp , nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX, bgDat  ,AL  , write
 	//
     //    force DUT.microcode[6] = {4'd0 ,2'd1, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
-    //    //              i0   ,invD, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
+    //    //                        i0   ,invD, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,     , bgDat  ,AL  , nop
     
     memory_test_GALPAT_YSCAN_SP(1);
     $display("PASS = %0d",pass);
@@ -161,34 +161,6 @@ begin
     `endif
 end
 endtask
-//task memory_sp_READ_away;
-//begin
-//    `ifdef DEBUG
-//    $display("memory_sp_READ ,ax= %0d,ay= %0d,d= %0d\n",ax,ay,d);
-//    `endif
-//    wr_en = 0;
-//    rd_en = 1;
-//    out_en = 1;
-//    //strobe = 1;
-//    #HALF_CYCLE clk = 1;
-//    #HALF_CYCLE clk = 0;
-//    if ( q == d_out ) mismatch = 0; else mismatch = 1;
-//    `ifdef MONITOR
-//    ref_op_cmd = READ;
-//    if ( ref_op_cmd == DUT.o_op_cmd &
-//    axA == DUT.o_addr_x &
-//    ayA == DUT.o_addr_y &
-//    q  == DUT.o_data ) begin
-//    end
-//    else begin
-//        pass = 0;// ax=&0d.%0d ay=&0d.%0d ax=&0d.%0d
-//$display("fail:");        
-//    end
-//    $display("op=%s.%s ax=%0d.%0d ay=%0d.%0d d=%0d.%0d",ref_op_cmd,DUT.o_op_cmd,axA,DUT.o_addr_x,ayA,DUT.o_addr_y,q,DUT.o_data);
-//    //end
-//    `endif
-//end
-//endtask
 
 task memory_sp_NOP;
 begin
@@ -403,29 +375,22 @@ begin
                 a={ax,ay};    
                 d=~address_function(ax,ay,data_pattern,data_invert);    
                 memory_sp_WRITE;
-                //r_axA = ax-1; r_ayA = ay-1;
                 r_aA = (axH<<2)+ayH;
-                //for (int axA=0; axA <=ax_max ; axA =axA+1) begin   
-                //    r_axA = r_axA+1;         
-                //    for (int ayA=0; ayA <=ay_max ; ayA= ayA+1 ) begin  
-                //        //$display("enterLoop");      
-                //        //ax = axH +axA; ay =ayH +ayA;
-                //        r_ayA =r_ayA+1;
-                //        if (axH==r_axA & ayH==r_ayA) begin $display("skip");continue;end
-                //        ax = r_axA; ay =r_ayA;
                 for (int aA=0; aA <=((ax_max<<2)+ay_max) ; aA =aA+1) begin   
+
                         r_aA = r_aA+1;
                         if (r_aA==((axH<<2)+ayH)) continue;
                         ax = r_aA>>2; r_ayA =r_aA; ay =r_ayA;
                         a={ax,ay};    
                         q=address_function(ax,ay,data_pattern,data_invert);    
                         memory_sp_READ; 
+
                         ax = axH; ay =ayH;
                         a={ax,ay};    
                         q=~address_function(ax,ay,data_pattern,data_invert);    
                         memory_sp_READ;
+
                         memory_sp_NOP; //just for pmbist DUT                        
-                //    end
                 end
                 ax = axH; ay =ayH;
                 a={ax,ay};
