@@ -40,16 +40,16 @@ microcode_container DUT(clk,1'b1,1'b0,,,,1'b1, , ,,,);
 initial begin
     clk = 0;
 
-    force DUT.microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd1 , 2'd2, 1'd0   ,2'd0, 2'd1};
-              //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX , bgDat  ,AL  , write
-    force DUT.microcode[1] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
-              //              i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A    ,keepY,keepX,   BgDat,AL  , read
-    force DUT.microcode[2] = {4'd1 ,2'd0, 2'd2, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd2, 1'd1   ,2'd0, 2'd1 };
-              //              i1   ,    , jump, nxt:xy,kpRC,lstAdCntOf, A    ,chgY ,incX ,invBgDat,AL  , write
-    force DUT.microcode[3] = {4'd1 ,2'd3, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
-              //              i1   ,iA+D, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
-    force DUT.microcode[4] = {4'd0 ,2'd1, 2'd1, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
-              //              i0   ,  d , Loop, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX ,   BgDat,AL  , read
+    //force DUT.microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd1 , 2'd2, 1'd0   ,2'd0, 2'd1};
+    //          //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX , bgDat  ,AL  , write
+    //force DUT.microcode[1] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0, 2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2 };
+    //          //              i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A    ,keepY,keepX,   BgDat,AL  , read
+    //force DUT.microcode[2] = {4'd1 ,2'd0, 2'd2, 3'd3  ,1'd0,1'd1      , 3'd0, 2'd1 , 2'd2, 1'd1   ,2'd0, 2'd1 };
+    //          //              i1   ,    , jump, nxt:xy,kpRC,lstAdCntOf, A    ,chgY ,incX ,invBgDat,AL  , write
+    //force DUT.microcode[3] = {4'd1 ,2'd3, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+    //          //              i1   ,iA+D, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
+    //force DUT.microcode[4] = {4'd0 ,2'd1, 2'd1, 3'd3  ,1'd0,1'd0      , 3'd0, 2'd1 , 2'd2, 1'd0   ,2'd0, 2'd2 };
+    //          //              i0   ,  d , Loop, nxt:xy,kpRC,lstAdCntOn, A    ,chgY ,incX ,   BgDat,AL  , read
 
     memory_test_MARCH_XSCAN_SP(1);
     $display("PASS = %0d",pass);
@@ -57,34 +57,36 @@ initial begin
 end
 `endif
 
+`ifdef GALPAT_YS
 initial begin    
     clk = 0;
-        force DUT.microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
-        //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
-
-
-        force DUT.microcode[1] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd1,1'd0      , 3'd2 ,2'd2 , 2'd1, 1'd1   ,2'd0, 2'd1};
-        //                        i0   ,_   ,nLoop, nxt:  ,inRC,lstAdCntOn, sAtoB,incY , chgX ,inBgDat,AL  , write
-
-        force DUT.microcode[2] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd1 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2};
-        //                        i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, B                , bgDat  ,AL  , read
-        force DUT.microcode[3] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2};
-        //                        i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A                ,invBgDat,AL  , read
-        force DUT.microcode[4] = {4'd2 ,2'd0, 2'd2, 3'd4  ,1'd1,1'd0      , 3'd1 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd0};
-        //                        i2   ,_   , jmp , nxt:rc,inRC,lstAdCntOn, B    ,incY , chgX , bgDat  ,AL  , nop
-
-        force DUT.microcode[5] = {4'd1 ,2'd0, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
-        //              i1   ,_   , jmp , nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
-
-        force DUT.microcode[6] = {4'd0 ,2'd1, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
-        //              i0   ,invD, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
+    //    force DUT.microcode[0] = {4'd0 ,2'd0, 2'd0, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
+    //    //              i0   ,_   ,nLoop, nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
+	//
+	//
+    //    force DUT.microcode[1] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd1,1'd0      , 3'd2 ,2'd2 , 2'd1, 1'd1   ,2'd0, 2'd1};
+    //    //                        i0   ,_   ,nLoop, nxt:  ,inRC,lstAdCntOn, sAtoB,incY , chgX ,inBgDat,AL  , write
+	//
+    //    force DUT.microcode[2] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd1 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd2};
+    //    //                        i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, B                , bgDat  ,AL  , read
+    //    force DUT.microcode[3] = {4'd0 ,2'd0, 2'd0, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd1   ,2'd0, 2'd2};
+    //    //                        i0   ,_   ,nLoop, nxt:  ,kpRC,lstAdCntOn, A                ,invBgDat,AL  , read
+    //    force DUT.microcode[4] = {4'd2 ,2'd0, 2'd2, 3'd4  ,1'd1,1'd0      , 3'd1 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd0};
+    //    //                        i2   ,_   , jmp , nxt:rc,inRC,lstAdCntOn, B    ,incY , chgX , bgDat  ,AL  , nop
+	//
+    //    force DUT.microcode[5] = {4'd1 ,2'd0, 2'd2, 3'd3  ,1'd0,1'd0      , 3'd0 ,2'd2 , 2'd1, 1'd0   ,2'd0, 2'd1};
+    //    //              i1   ,_   , jmp , nxt:xy,kpRC,lstAdCntOn, A    ,incY , chgX , bgDat  ,AL  , write
+	//
+    //    force DUT.microcode[6] = {4'd0 ,2'd1, 2'd1, 3'd0  ,1'd0,1'd0      , 3'd0 ,2'd0 , 2'd0, 1'd0   ,2'd0, 2'd0};
+    //    //              i0   ,invD, Loop, nxt:  ,kpRC,lstAdCntOn, A    ,     ,      , bgDat  ,AL  , nop
     
     memory_test_GALPAT_YSCAN_SP(1);
     $display("PASS = %0d",pass);
     #100 $stop;
 
 end
-//initial #2000 $stop;
+`endif
+
 
 
 import pmbist::*;
