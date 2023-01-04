@@ -1,13 +1,15 @@
 TODO:
 
-optimize loop circuit
-timing?
+clock switching circuit
+make sdc, optimize freq
 
-netlist with many mems
+multicycle operation
 
 verify diagonal pattern
 
+netlist with many mems
 
-clock switching circuit
-dpram support, multicycle operation, physcial-logical mapping
+optimize loop circuit
 
+physcial-logical mapping
+dpram support

@@ -138,7 +138,7 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
     end
     endtask
     
-    task setup;
+    task automatic setup;
     begin
         force select = 1;
         force capture_en = 1;
@@ -189,7 +189,25 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         force update_en = 0;
     end
     endtask    
-    task shift;
+
+    task shift1b;
+    input  in;
+    output out;
+    begin
+        force select     =1;
+	force capture_en =0;
+	force shift_en   =1;
+	force update_en  =0;
+	force si         =in;
+	out = so;
+        pulse_clk;
+    end
+    endtask
+
+    task automatic shiftopen;
+    logic out;
+    output chain[$];
+    //output chain[];
     begin
         force select = 1;
         force capture_en = 1;
@@ -197,15 +215,12 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         force update_en = 0;
         force si = 0;
         pulse_clk;
-        force capture_en = 0;
-        force shift_en = 1;
-        force update_en = 0;
-        force si = 0;
-        for (int i=0; i <=3; i =i+1) pulse_clk;
-        force si = 1;
-        for (int i=4; i <=5; i =i+1) pulse_clk;
-        force si = 0;
-        for (int i=6; i <=471; i =i+1) pulse_clk;
+
+	for (int i=1; i <=3; i =i+1)   begin shift1b(0,out); chain.push_front(out); end
+	for (int i=4; i <=5; i =i+1)   begin shift1b(1,out); chain.push_front(out); end
+	//for (int i=0; i <=3; i =i+1)   begin shift1b(0,out); chain[i]=out; end
+	//for (int i=4; i <=5; i =i+1)   begin shift1b(1,out); chain[i]=out; end
+
         force capture_en = 0;
         force shift_en = 0;
         force update_en = 1;
@@ -216,6 +231,42 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         force update_en = 0;
     end
     endtask    
+
+    task automatic shift;
+    logic out;
+    output chain[$];
+    //output chain[];
+    begin
+        force select = 1;
+        force capture_en = 1;
+        force shift_en = 0;
+        force update_en = 0;
+        force si = 0;
+        pulse_clk;
+
+	for (int i=1; i <=3; i =i+1)   begin shift1b(1,out); chain.push_front(out); end
+	for (int i=4; i <=5; i =i+1)   begin shift1b(1,out); chain.push_front(out); end
+	for (int i=6; i <=476; i =i+1) begin shift1b(0,out); chain.push_front(out); end
+	for (int i=477; i <=478; i =i+1) begin shift1b(0,out); chain.push_front(out); end //close the setup/result chains
+	//for (int i=0; i <=3; i =i+1)   begin shift1b(0,out); chain[i]=out; end
+	//for (int i=4; i <=5; i =i+1)   begin shift1b(1,out); chain[i]=out; end
+	//for (int i=6; i <=471; i =i+1) begin shift1b(0,out); chain[i]=out; end
+
+        force capture_en = 0;
+        force shift_en = 0;
+        force update_en = 1;
+        force si = 0;
+        pulse_clk;
+        force capture_en = 0;
+        force shift_en = 0;
+        force update_en = 0;
+    end
+    endtask    
+
+
+    logic chain0[$];
+    logic chain1[$];
+    logic chain2[$];
     initial begin
         pulse_clk;
         setup;
@@ -224,7 +275,16 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         result;
         for (int i=0; i <3; i =i+1) pulse_clk;
 
-	shift;
+	shiftopen(chain0);
+	$display("shifted out chain = %p",chain0);
+
+	shift(chain1);
+	$display("shifted out chain = %p",chain1);
+	for (int i=0; i <478; i =i+1) $write(chain1[i]);
+	$display("");
+
+	shiftopen(chain2);
+	$display("shifted out chain = %p",chain2);
 	
         //setup;
         //for (int i=0; i <100; i =i+1) pulse_clk;
@@ -233,7 +293,8 @@ ram_sp_sr_sw #(.DATA_WIDTH(MEM0_DATA),.ADDR_WIDTH(MEM0_ADR_Y+MEM0_ADR_X)) mut_m0
         //result;
         //for (int i=0; i <9; i =i+1) pulse_clk;
 
-	//$stop;
+        for (int i=0; i <5; i =i+1) pulse_clk;
+	$stop;
         forever pulse_clk;
     end
 

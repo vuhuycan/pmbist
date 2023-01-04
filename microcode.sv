@@ -65,22 +65,16 @@ import pmbist::*;
     logic inst_ptr_so,inst_ptr_si;
     assign inst_ptr_si = si;
     
+    logic addr_x_carry, addr_y_carry, rc_carry;
+    logic r_addr_by_reg_so;
+
     //---------------------------
     //-- Instruction Pointer:
     //---------------------------
-    assign o_end_of_prog = r_inst_ptr==(INST_NUM-1) & next_inst_cond_sastified;
-
-    assign repeat_en = (loop_mode==REPEAT) & next_inst_cond_sastified;
     assign jmp_en = (repeat_en & r_loop_reg[loop_reg_id]) | (loop_mode==JUMP & ~next_inst_cond_sastified);
-
-    logic r_first_cycle_of_inst; //TODO not an acurate name. its correct name is "first cycle of instruction N, counted up from N-1, not branched from looping. 
-    always @(posedge clk) r_first_cycle_of_inst <= i_mbist_run & next_inst_cond_sastified &~jmp_en;
-
-    assign next_inst_ptr =  //o_end_of_prog             ? r_inst_ptr    :
-                            //~i_mbist_run              ? r_inst_ptr    :
-                            jmp_en                    ? jmp_to_inst   : 
+    assign next_inst_ptr =   jmp_en                                 ? jmp_to_inst   : 
                             (i_mbist_run & next_inst_cond_sastified)? r_inst_ptr +1 : 
-                                                        r_inst_ptr;
+                                                                      r_inst_ptr;
     always @(posedge clk or negedge rstn) begin
         if (~rstn) begin
             r_inst_ptr <= 'hf;
@@ -92,6 +86,8 @@ import pmbist::*;
     end 
     assign inst_ptr_so = r_inst_ptr[INST_NUM_W-1];
     
+    assign o_end_of_prog = r_inst_ptr==(INST_NUM-1) & next_inst_cond_sastified;
+
     //---------------------------
     //-- Loop Control block
     //---------------------------
@@ -99,6 +95,11 @@ import pmbist::*;
 
     assign next_inst_cond_mask = ~{next_inst_cond_x,next_inst_cond_y,next_inst_cond_rc};
     assign next_inst_cond_sastified = &( next_inst_cond_mask | {addr_x_carry,addr_y_carry,rc_carry} );
+
+    assign repeat_en = (loop_mode==REPEAT) & next_inst_cond_sastified;
+
+    logic r_first_cycle_of_inst; //TODO not an acurate name. its correct name is "first cycle of instruction N, counted up from N-1, not branched from looping. 
+    always @(posedge clk) r_first_cycle_of_inst <= i_mbist_run & next_inst_cond_sastified &~jmp_en;
 
     //TODO when run test again, this reg is not reseted => no more loop on the
     //2nd mbist run onward. also, fail flags in memories are not reseted when
@@ -193,8 +194,6 @@ import pmbist::*;
     logic               addr_y_max_carry, addr_y_min_carry;
 
     logic [RPT_CNTR-1:0]  r_rpt_cntr_reg, next_rpt_cntr_reg, r_rc_max;
-
-    logic addr_x_carry, addr_y_carry, rc_carry;
 
     always @(posedge clk or negedge rstn) begin
         if (~rstn) begin
@@ -445,7 +444,6 @@ import pmbist::*;
             r_addr_by_reg <= next_addr_by_reg;
         end
     end 
-    logic r_addr_by_reg_so;
     assign r_addr_by_reg_so = r_addr_by_reg[ADDR_Y-1];
 
     always @(*) begin
