@@ -100,7 +100,9 @@ endpackage
 module pmbist_top
 import pmbist::*;
 (
-    clk, rstn,
+    tck, f_clk,
+    o_clk_sel, 
+    rstn,
     
     select,
     capture_en,
@@ -127,7 +129,10 @@ import pmbist::*;
     so_from_mem,
 );    
     
-    input logic clk, rstn;
+    input logic tck, f_clk, rstn;
+          logic clk;
+    output logic o_clk_sel;
+	        logic clk_sel;
     
     output logic [BG_DATA-1:0] o_data;
     output logic [ADDR_X-1:0]  o_addr_x;
@@ -158,20 +163,21 @@ import pmbist::*;
     assign o_mbist_run = mbist_run;
     
     
-    tdr #(5) ins_ctrl_tdr (
-    clk         
+    tdr #(5) i_ctl_tdr (
+    tck         
   , ~rstn       
   , select      
   , capture_en   
   , shift_en     
   , update_en    
   , si      
-  , {3'b0          ,mbist_done,fail_flag}      
+  , {3'b0          ,~mbist_done,fail_flag}
   , tdr_so     
   , tdr_dataout   
   ) ; 
-    assign mbist_start  = tdr_dataout[2];
-    assign shift_setup  = tdr_dataout[3] & shift_en;
+    assign mbist_start  = tdr_dataout[1]; //TODO mbist_start can be metastable
+    assign clk_sel      = tdr_dataout[2];
+    assign shift_setup  = tdr_dataout[3] & shift_en; //when on functional clk, toggle shift_setup/result might cause metastable
     assign shift_result = tdr_dataout[4] & shift_en;
     
     assign setup_chain_si = tdr_so;
@@ -180,6 +186,9 @@ import pmbist::*;
     assign si_to_mem = tdr_setup_so;
     assign so = shift_result? so_from_mem : tdr_setup_so;
     
+    clock_mux #(2) i_clkmux ({f_clk,tck},clk_sel? 2'b01:2'b10,clk);
+    assign o_clk_sel = clk_sel;
+
     enum logic[1:0] {
         IDLE = '0,
         //SETUP,
@@ -230,7 +239,7 @@ import pmbist::*;
     end     
         
         
-    microcode_container ins_u_code_container
+    microcode_container i_ucode
     (
     clk, rstn,
     
@@ -269,8 +278,8 @@ import pmbist::*;
     
     task pulse_clk;
     begin
-        #50 force clk = 1;
-        #50 force clk = 0;
+        #50 force tck = 1;
+        #50 force tck = 0;
     end
     endtask
     
@@ -406,5 +415,59 @@ module tdr (
     else
        UpdateData <= UpdateData ;
   end
+
+endmodule
+
+module clock_mux (clk,clk_select,clk_out);
+
+	parameter num_clocks = 4;
+
+	input [num_clocks-1:0] clk;
+	input [num_clocks-1:0] clk_select; // one hot
+	output clk_out;
+
+	genvar i;
+
+	reg [num_clocks-1:0] ena_r0;
+	reg [num_clocks-1:0] ena_r1;
+	reg [num_clocks-1:0] ena_r2;
+	wire [num_clocks-1:0] qualified_sel;
+
+	// A look-up-table (LUT) can glitch when multiple inputs
+	// change simultaneously. Use the keep attribute to
+	// insert a hard logic cell buffer and prevent
+	// the unrelated clocks from appearing on the same LUT.
+
+	wire [num_clocks-1:0] gated_clks /* synthesis keep */;
+
+	initial begin
+		ena_r0 = 0;
+		ena_r1 = 0;
+		ena_r2 = 0;
+	end
+
+	generate
+		for (i=0; i<num_clocks; i=i+1)
+		begin : lp0
+			wire [num_clocks-1:0] tmp_mask;
+			assign tmp_mask = {num_clocks{1'b1}} ^ (1 << i);
+
+			assign qualified_sel[i] = clk_select[i] & (~|(ena_r2 & tmp_mask));
+
+			always @(posedge clk[i]) begin
+				ena_r0[i] <= qualified_sel[i];
+				ena_r1[i] <= ena_r0[i];
+			end
+
+			always @(negedge clk[i]) begin
+				ena_r2[i] <= ena_r1[i];
+			end
+
+			assign gated_clks[i] = clk[i] & ena_r2[i];
+		end
+	endgenerate
+
+	// These will not exhibit simultaneous toggle by construction
+	assign clk_out = |gated_clks;
 
 endmodule

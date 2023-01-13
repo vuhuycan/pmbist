@@ -47,7 +47,9 @@ endmodule
 module mem_interface
 import pmbist::*;
 (
-    clk, rstn,
+    tck, f_clk, i_clk_sel,
+    rstn,
+    o_clk,
     
     i_addr_x,
     i_addr_y,
@@ -94,7 +96,10 @@ import pmbist::*;
     parameter MEM_DTdivBG_DT = MEM_DATA/BG_DATA;
     parameter MEM_DTmodBG_DT = MEM_DATA%BG_DATA;
 
-    input logic clk, rstn;
+    input logic tck, f_clk, rstn;
+    logic  clk;
+    input logic i_clk_sel;
+    output logic o_clk;
     
     input  logic [ADDR_X-1:0]  i_addr_x;
     input  logic [ADDR_Y-1:0]  i_addr_y;
@@ -120,6 +125,9 @@ import pmbist::*;
     logic  ay_max_mask;
     logic  mem_test_en;
     
+    clock_mux #(2) i_clkmux ({f_clk,tck},i_clk_sel? 2'b01:2'b10,clk);
+	 assign o_clk = clk;
+
     generate if (MEM_ADR_X_MAX < ADDR_X_MAX) 
         assign ax_max_mask = ~( i_addr_x > MEM_ADR_X_MAX );
     else 

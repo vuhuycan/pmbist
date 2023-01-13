@@ -37,12 +37,6 @@ LABEL: OP    , BgDataType , BgDataInv , AddrX_CMD, AddrY_CMD, ApplyAddrReg, NoLa
              ,                                              , selBrrA
 
 repeat thi co the invert addr/data, jump thi ko
-chua thu truong hop co hon 3 nested loop, with different modified address/data 
 
-1026 LEs
-434  Regs
-
-without loop control comb logic:
-528  LEs
-418  Regs
-
+~800 LEs
+~580 Regs

@@ -38,6 +38,7 @@ microcode_container DUT(clk,1'b1,1'b0,,,,1'b1, , ,,,);
 
 initial begin
     clk = 0;
+    //pulse_clk;
 
 `ifdef MARCH12_XS
     memory_test_MARCH_XSCAN_SP(1);
@@ -62,6 +63,12 @@ import pmbist::*;
 t_op_cmd ref_op_cmd;
 integer pass = 1;
 
+task pulse_clk;
+begin
+    #HALF_CYCLE clk = 1;
+    #HALF_CYCLE clk = 0;
+end
+endtask
 task monitor;
 begin
     if ( ref_op_cmd == DUT.o_op_cmd &

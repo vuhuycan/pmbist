@@ -53,6 +53,7 @@ import pmbist::*;
     logic [INST-1:0] microcode [0:INST_NUM-1];
     logic [INST-1:0] curr_inst;
     logic [INST_NUM_W-1:0] r_inst_ptr, next_inst_ptr;
+    logic [INST_NUM_W-1:0] inst_ptr_p1;
 
     logic jmp_en, repeat_en;
     logic next_inst_cond_sastified;
@@ -72,8 +73,11 @@ import pmbist::*;
     //-- Instruction Pointer:
     //---------------------------
     assign jmp_en = (repeat_en & r_loop_reg[loop_reg_id]) | (loop_mode==JUMP & ~next_inst_cond_sastified);
+    assign repeat_en = (loop_mode==REPEAT) & next_inst_cond_sastified;
+
+    assign inst_ptr_p1 = r_inst_ptr +1;
     assign next_inst_ptr =   jmp_en                                 ? jmp_to_inst   : 
-                            (i_mbist_run & next_inst_cond_sastified)? r_inst_ptr +1 : 
+                            (i_mbist_run & next_inst_cond_sastified)? inst_ptr_p1   : //r_inst_ptr +1 : 
                                                                       r_inst_ptr;
     always @(posedge clk or negedge rstn) begin
         if (~rstn) begin
@@ -96,16 +100,9 @@ import pmbist::*;
     assign next_inst_cond_mask = ~{next_inst_cond_x,next_inst_cond_y,next_inst_cond_rc};
     assign next_inst_cond_sastified = &( next_inst_cond_mask | {addr_x_carry,addr_y_carry,rc_carry} );
 
-    assign repeat_en = (loop_mode==REPEAT) & next_inst_cond_sastified;
-
     logic r_first_cycle_of_inst; //TODO not an acurate name. its correct name is "first cycle of instruction N, counted up from N-1, not branched from looping. 
     always @(posedge clk) r_first_cycle_of_inst <= i_mbist_run & next_inst_cond_sastified &~jmp_en;
 
-    //TODO when run test again, this reg is not reseted => no more loop on the
-    //2nd mbist run onward. also, fail flags in memories are not reseted when
-    //run mbist again. 
-    // => Need to implement a reset scheme for it?
-    //
     //TODO not tested with 2 loops with same START_LOOP instruction yet.
     always @(*) begin
         next_loop_reg = r_loop_reg;
@@ -153,7 +150,21 @@ import pmbist::*;
     //---------------------------
     //-- Fetch current Instruction from MicroCode:
     //---------------------------
-    assign curr_inst          = microcode[r_inst_ptr];
+    logic [INST-1:0] next_inst, jump_inst;
+    assign next_inst = microcode[inst_ptr_p1];
+    assign jump_inst = microcode[jmp_to_inst];
+
+    logic [INST-1:0] r_curr_inst;
+    always @(posedge clk ) begin
+    if (jmp_en)
+        r_curr_inst          <= jump_inst;
+    else if (i_mbist_run & next_inst_cond_sastified)
+        r_curr_inst          <= next_inst;
+    else
+        r_curr_inst          <= r_curr_inst;
+    end    
+
+    assign curr_inst          = r_curr_inst;
 
     assign o_op_cmd           =             t_op_cmd'(curr_inst[OP_CMD-1:0]);
     assign bg_data_type       =       t_bg_data_type'(curr_inst[OP_CMD+1:OP_CMD]);
@@ -545,6 +556,7 @@ import pmbist::*;
     //---------------------------
     initial begin
         r_inst_ptr = 'hf;
+        r_curr_inst = '0;
         
         
         

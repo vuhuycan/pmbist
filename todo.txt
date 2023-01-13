@@ -1,7 +1,7 @@
 TODO:
 
 clock switching circuit
-make sdc, optimize freq
+make sdc, optimize freq: currently about 60MHz
 
 multicycle operation
 
